@@ -10,7 +10,8 @@ Welcome to pgplanner's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   scan_nodes
+   join_nodes
 
 Indices and tables
 ==================
