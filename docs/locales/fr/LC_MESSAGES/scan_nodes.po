@@ -1,0 +1,53 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2020, Guillaume Lelarge
+# This file is distributed under the same license as the pgplanner package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2020.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version:  pgplanner\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2020-10-28 15:54+0100\n"
+"PO-Revision-Date: 2020-10-28 14:47+0100\n"
+"Last-Translator: \n"
+"Language: fr\n"
+"Language-Team: \n"
+"Plural-Forms: nplurals=2; plural=(n > 1)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.8.0\n"
+
+#: ../../source/scan_nodes.rst:2
+msgid "Scan nodes"
+msgstr "Nœuds de parcours"
+
+#: ../../source/scan_nodes/bitmap_scan.rst:2
+msgid "Bitmap Scan"
+msgstr "Parcours bitmap"
+
+#: ../../source/scan_nodes/bitmap_scan.rst:4
+#: ../../source/scan_nodes/index_only_scan.rst:4
+#: ../../source/scan_nodes/index_scan.rst:4
+#: ../../source/scan_nodes/seq_scan.rst:4
+msgid "Plein de choses à dire :)"
+msgstr "Plein de choses à dire :)"
+
+#: ../../source/scan_nodes/index_only_scan.rst:2
+msgid "Index Only Scan"
+msgstr "Parcours d'index seul"
+
+#: ../../source/scan_nodes/index_scan.rst:2
+msgid "Index Scan"
+msgstr "Parcours d'index"
+
+#: ../../source/scan_nodes/seq_scan.rst:2
+msgid "Seq Scan"
+msgstr "Parcours séquentiel"
+
+#~ msgid "Scan nodes"
+#~ msgstr "Nœuds de parcours"
+
+#~ msgid "Scan nodes of PostgreSQL"
+#~ msgstr "Nœuds de parcours de PostgreSQL"
+
