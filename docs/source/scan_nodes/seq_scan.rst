@@ -56,8 +56,8 @@ la taille moyenne des lignes diffère.
 
 Here is how to create the table we will play with::
 
-   CREATE TABLE t1 (c1 integer);
-   INSERT INTO t1 (c1) SELECT generate_series(1, 100000);
+   CREATE TABLE t1 (c1 integer, c2 text);
+   INSERT INTO t1 SELECT i, 'Line '||i FROM generate_series(1, 100000) i;
    ANALYZE t1;
 
 Let's read the whole table. A sequential scan will be faster because it reads
@@ -67,8 +67,8 @@ have any indexes::
    EXPLAIN SELECT * FROM t1;
    
                            QUERY PLAN                        
-   ----------------------------------------------------------
-    Seq Scan on t1  (cost=0.00..1443.00 rows=100000 width=4)
+   -----------------------------------------------------------
+    Seq Scan on t1  (cost=0.00..1541.00 rows=100000 width=14)
    (1 row)
 
 The cost depends on different things:
@@ -89,7 +89,7 @@ We can simply get it with this query::
    FROM pg_class
    WHERE relname='t1';
 
-Executing this query gets us a ``1443.00`` result, which is indeed the final
+Executing this query gets us a ``1541.00`` result, which is indeed the final
 cost.
 
 If there's a filter, this will cost more because of the work needed to filter
@@ -98,8 +98,8 @@ all rows in the table::
    EXPLAIN SELECT * FROM t1 WHERE c1=1000;
    
                         QUERY PLAN
-   -----------------------------------------------------
-    Seq Scan on t1  (cost=0.00..1693.00 rows=1 width=4)
+   ------------------------------------------------------
+    Seq Scan on t1  (cost=0.00..1791.00 rows=1 width=14)
       Filter: (c1 = 1000)
    (2 rows)
 
@@ -107,7 +107,7 @@ The ``Filter`` row shows which filter is done. The ``rows=`` information tells
 us how many rows the planner thinks it will get back once the filter is
 applied.
 
-This cost is bigger. We went from 1443 to 1693. The added cost depends on the
+This cost is bigger. We went from 1541 to 1791. The added cost depends on the
 number of rows in the table and on the current setting of the
 ``cpu_operator_cost`` GUC. The cost query becomes::
 
@@ -121,7 +121,7 @@ number of rows in the table and on the current setting of the
    FROM pg_class
    WHERE relname='t1';
 
-which gives us a final cost of 1693.
+which gives us a final cost of 1791.
 
 If the operator is actually a user function, it may depend on the value of
 function ``COST`` clause. The example above shows a cost of 1693 when we use
@@ -141,8 +141,8 @@ operator, but has a 10k cost, it will result in this::
    EXPLAIN SELECT * FROM t1 WHERE equal(c1, 1000);
    
                             QUERY PLAN
-   ------------------------------------------------------------
-    Seq Scan on t1  (cost=0.00..2501443.00 rows=33333 width=4)
+   -------------------------------------------------------------
+    Seq Scan on t1  (cost=0.00..2501541.00 rows=33333 width=14)
       Filter: equal(c1, 1000)
    (2 rows)
 
@@ -155,13 +155,13 @@ execute the query, which means using the ``EXPLAIN`` option::
   
                              QUERY PLAN
   ------------------------------------------------------------
-   Seq Scan on t1  (cost=0.00..2501443.00 rows=33333 width=4)
-                   (actual time=1.111..56.403 rows=1 loops=1)
+   Seq Scan on t1  (cost=0.00..2501541.00 rows=33333 width=4)
+                   (actual time=3.157..44.679 rows=1 loops=1)
      Filter: equal(c1, 1000)
      Rows Removed by Filter: 99999
-     Buffers: shared hit=443
-   Planning Time: 0.036 ms
-   Execution Time: 56.420 ms
+     Buffers: shared hit=541
+   Planning Time: 0.081 ms
+   Execution Time: 44.711 ms
   (6 rows)
 
 The cost has definitely exploded because of the ``COST`` set by the function.
@@ -176,7 +176,8 @@ something else::
    EXPLAIN SELECT * FROM t1 WHERE equal(c1, 1000);
                                    QUERY PLAN
    --------------------------------------------------------------------------
-    Seq Scan on t1  (cost=10000000000.00..10002501443.00 rows=33333 width=4)
+    Seq Scan on t1  (cost=10000000000.00..10002501541.00 rows=33333 width=4)
       Filter: equal(c1, 1000)
    (2 rows)
+   RESET enable_seqscan;
 
