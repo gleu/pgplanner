@@ -48,11 +48,11 @@ Line #4 only appears if the ``ANALYZE`` and ``BUFFERS`` options are used. It
 says how shared buffers, local buffers and temporary buffers are handled: how
 many pages are read in cache and out of cache, written, flushed, etc.
 
-Quand PostgreSQL ne dispose pas de statistiques sur le nombre de lignes et de
-blocs (par exemple, une table vide immédiatement après sa création), l'optimiseur
-part sur le principe qu'elle contient dix blocs, et estime le nombre de lignes pour
-ces dix blocs. Donc l'estimation du coût final sera différente entre deux tables dont
-la taille moyenne des lignes diffère.
+When PostgreSQL doesn't have statistics for the number of tuples or pages (for
+example, an empty table immediately after its creation), the planner assumes
+it has ten pages, and estimates the number of tuples in those ten pages.  So
+the final cost estimate will be different between two tables which differ in
+tuples per page.
 
 Here is how to create the table we will play with::
 
@@ -150,7 +150,7 @@ So the planner expects to get 33333 rows after applying the "egal(c1, 1000)"
 filter. To know how much rows were actually removed by the filter, we need to
 execute the query, which means using the ``EXPLAIN`` option::
 
-  EXPLAIN (ANALYZE, BUFFERD)
+  EXPLAIN (ANALYZE, BUFFERS)
     SELECT * FROM t1 WHERE equal(c1, 1000);
   
                              QUERY PLAN
@@ -167,8 +167,8 @@ execute the query, which means using the ``EXPLAIN`` option::
 The cost has definitely exploded because of the ``COST`` set by the function.
 
 The ``enable_seqscan`` GUC allows us to enable or disable sequential scans. It
-doesn't stricly disable sequential scans (because there's no other way to scan
-a table if there's no index on this table). It simply adds 10:sub:`10` to the
+doesn't strictly disable sequential scans (because there's no other way to scan
+a table if there's no index on this table). It simply adds 10^10 to the
 cost, so that we'll get a sequential way only of there's no way to do
 something else::
 

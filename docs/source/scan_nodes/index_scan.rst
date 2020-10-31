@@ -20,14 +20,14 @@ Here are the informations the ``EXPLAIN`` statement gives us::
 
 The first line gives us the node name, the index name, and the relation name.
 The executor will read this index, following the tree structure on disk. At
-each value found, it will read the adequate table's row.
+each value found, it will read the associated table's row.
 
 Line #2 appears only when the index can satisfy a predicate In this example,
 the executor uses the index to quickly find the rows for which c1 is less than
 1000.
 
 Line #3 may appear if there's another filter used on the index' relation. This
-filtering happens once the adequate row on the table has been read.
+filtering happens once the associated row on the table has been read.
 
 Line #4 only appears when the executor needs to filter data other than with
 the index and if the ``ANALYZE`` option is used with the ``EXPLAIN``
@@ -75,7 +75,7 @@ can't be used for this.
 
 Due to the tree structure of an index, doing an index scan is pretty slow
 because the OS needs to move the heads of the disk in order to find the next
-interesting page. This behaviour tends to disable the Read Aheah functionality
+interesting page. This behaviour tends to disable the Read Ahead functionality
 of the OS. Because of this, reading the same amount of data in a table and in
 an index will have completely different performances. The index scan will be
 longer, unless the index is available in memory or on a SSD disk. In both
