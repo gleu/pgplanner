@@ -7,7 +7,7 @@ Welcome to pgplanner's documentation!
 =====================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
 
    scan_nodes
