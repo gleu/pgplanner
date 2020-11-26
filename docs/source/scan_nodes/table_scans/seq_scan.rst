@@ -1,68 +1,75 @@
 Seq Scan
 ========
 
-One way of reading datas from a table is to scan the table, pages by pages,
-sequentially, to decode each row, to filter them if needed, and to send them
-back to the user. Hence the usual term of ``Sequential Scan`` (or ``Seq
+La façon la plus traditionnelle et toujours fonctionnelle de lire les données
+d'une table est de parcourir la table, bloc par bloc, séquentiellement, pour
+décoder chaque ligne, les filtrer si nécessaire et les envoyer à l'utilisateur
+(ou au nœud supérieur). D'où le terme de ``Sequential Scan`` (ou ``Seq
 Scan``).
 
-This scan always reads all the pages of the table, unless the query has a
-``LIMIT`` clause which would allow the executor to stop the scan beforehand.
-It may not send back all the rows if a filter (such as a ``WHERE`` clause) is
-applied. If much of the rows are filtered out, an index scan might be a better
-option. If much of the rows are to be sent back, a sequential scan is probably
-best.
+Ce type de parcours lit toujours tous les blocs de la table, sauf si la
+requête a une clause ``LIMIT`` qui permettrait à l'exécuteur d'arrêter le
+parcours avant. Il pourrait ne pas renvoyer toutes les lignes si un filtre
+(tel qu'une clause ``WHERE``) est appliqué. Si une grande majorité de lignes
+est filtrée, un parcours d'index pourrait être une meilleure option. Si une
+grande majorité de lignes est renvoyée à l'utilisateur (ou au nœud supérieur),
+un parcours séquentiel est probablement préférable.
 
-One of the great things about sequential scan is that it works every time.
-Whether there is an index or not, a sequential scan is always doable. It's
-also the most efficient scan if the relation is really tiny and if the number
-of result rows is really a huge part of the total number of rows.
+Le plus gros avantage des parcours séquentiels est qu'ils fonctionnent
+toujours. Qu'il y ait un index ou non, un parcours séquentiel est toujours
+possible. C'est aussi le parcours le plus efficace si la relation est très
+petite et si le nombre de lignes en résultat corresponds à une grande partie
+du nombre total de lignes.
 
-As blocks are read in sequential order, rows aren't specifically ordered.
-They are read on physical order on disk, which doesn't necessarily mean they
-will be sorted according to their insertion time order or any specific order.
+Comme les blocs sont lus dans l'ordre séquentiel, les lignes ne sont pas
+spécialement triées. Elles sont lues dans l'ordre séquentiel physique, ce qui
+ne signifie pas forcément qu'elles seront triées dans leur ordre d'insertion
+ou dans tout autre ordre.
 
-Here are the informations the ``EXPLAIN`` statement gives us::
+Voici les informations données par l'instruction ``EXPLAIN`` ::
 
    Seq Scan on t1 [...]
      Filter: (id = 10)
      Rows Removed by Filter: 999999
      Buffers: shared hit=4005 read=420
 
-The first line is the node name, followed by the relation name. The executor
-will read this table, pages by pages, read each tuple, and keep only those
-that are visible by the current transaction and that respect the filter (if
-there's one).
+La première ligne indique le nom du nœud suivi du nom de la relation.
+L'exécuteur va lire cette table, bloc par bloc, lire chaque ligne et ne
+conserver que celles visibles pour la transaction en cours et respectant
+le filtre (s'il y en a un).
 
-Line #2 only appears when the executor needs to filter data because of a
-predicate (a ``WHERE`` clause for example). It says which filter is done
-(here, it needs to get all the rows in which the value of id is equal to 10).
+La troisième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
+des données pour respecter un prédicat (une clause ``WHERE`` par exemple).
+Elle précise le filtre réalisé (ici, il doit chercher toutes les lignes dont
+la valeur de la colonne ``id`` est égale à 10).
 
-Line #3 only appears when the executor needs to filter data because of a
-predicate and if the ``ANALYZE`` option is used with the ``EXPLAIN``
-statement.  It says how many rows were filtered out by applying the predicate.
-If this number is a lot more then the number of rows returned by the node, an
-index might help to lower the execution time of the query.
+La quatrième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
+des données pour respecter un prédicat et si l'option ``ANALYZE`` a été 
+utilisée avec l'instruction ``EXPLAIN``. Elle indique combien de lignes ont 
+été filtrées en appliquant le prédicat. Si ce nombre est bien plus important
+que le nombre de lignes renvoyées par le nœud, un index pourrait aider à
+diminuer la durée d'exécution de la requête.
 
-Line #4 only appears if the ``ANALYZE`` and ``BUFFERS`` options are used. It
-says how shared buffers, local buffers and temporary buffers are handled: how
-many pages are read in cache and out of cache, written, flushed, etc.
+La cinquième ligne apparaît seulement si les options ``ANALYZE`` et ``BUFFERS``
+sont utilisées. Elle indique comment les caches partagé, local et temporaire
+sont gérés : combien de blocs sont lus dans le cache et en dehors, modifiés,
+écrits sur disque, etc.
 
-When PostgreSQL doesn't have statistics for the number of tuples or pages (for
-example, an empty table immediately after its creation), the planner assumes
-it has ten pages, and estimates the number of tuples in those ten pages.  So
-the final cost estimate will be different between two tables which differ in
-tuples per page.
+Quand PostgreSQL n'a pas de statistiques sur le nombre de lignes ou de blocs
+(par exemple une table vide immédiatement après sa création), le planificateur
+suppose qu'elle fait dix blocs, et estime le nombre de lignes dans ces dix
+blocs. Donc l'estimation du coût final sera différent entre deux tables qui
+diffèrent en nombre de lignes par bloc.
 
-Here is how to create the table we will play with::
+Voici comment créer la table avec laquelle nous allons expérimenter ::
 
    CREATE TABLE t1 (c1 integer, c2 text);
    INSERT INTO t1 SELECT i, 'Line '||i FROM generate_series(1, 100000) i;
    ANALYZE t1;
 
-Let's read the whole table. A sequential scan will be faster because it reads
-pages sequentially. Moreover, it's the only option since the table doesn't
-have any indexes::
+Lisons la table complète. Un parcours séquentiel sera plus rapide car il lit
+les pages séquentiellement. De plus, c'est la seule option actuellement vu que
+la table n'a pas d'index ::
 
    EXPLAIN SELECT * FROM t1;
    
@@ -71,14 +78,14 @@ have any indexes::
     Seq Scan on t1  (cost=0.00..1541.00 rows=100000 width=14)
    (1 row)
 
-The cost depends on different things:
+Le coût dépend de différentes choses :
 
-* the number of pages,
-* the number of rows,
-* and the current setting of the ``seq_page_cost`` and ``cpu_tuple_cost``
-  GUCs.
+* le nombre de blocs ;
+* le nombre de lignes ;
+* et la configuration actuelle des paramètres ``seq_page_cost`` et
+  ``cpu_tuple_cost``.
 
-We can simply get it with this query::
+Nous pouvons obtenir le coût avec cette requête ::
 
    SELECT
      round((
@@ -89,11 +96,11 @@ We can simply get it with this query::
    FROM pg_class
    WHERE relname='t1';
 
-Executing this query gets us a ``1541.00`` result, which is indeed the final
-cost.
+Exécutant cette requête renvoie comme résultat ``1541.00``, ce qui est en
+effet le coût final.
 
-If there's a filter, this will cost more because of the work needed to filter
-all rows in the table::
+S'il existe un filtre, cela coûtera plus parce que le travail à effectuer doit
+procéder au test sur toutes les lignes de la table ::
 
    EXPLAIN SELECT * FROM t1 WHERE c1=1000;
    
@@ -103,13 +110,14 @@ all rows in the table::
       Filter: (c1 = 1000)
    (2 rows)
 
-The ``Filter`` row shows which filter is done. The ``rows=`` information tells
-us how many rows the planner thinks it will get back once the filter is
-applied.
+La ligne ``Filter`` montre le filtre réalisé. L'information ``rows=`` indique
+le nombre de lignes que l'optimiseur pense renvoyer une fois le filtre
+appliqué.
 
-This cost is bigger. We went from 1541 to 1791. The added cost depends on the
-number of rows in the table and on the current setting of the
-``cpu_operator_cost`` GUC. The cost query becomes::
+Le coût est plus important. Nous sommes passés de 1541 à 1791. Le coût
+supplémentaire dépend du nombre de lignes dans la table et de la configuration
+actuelle du paramètre ``cpu_operator_cost``. Le calcul du coût final de la
+requête devient ::
 
    SELECT
      round((
@@ -121,12 +129,12 @@ number of rows in the table and on the current setting of the
    FROM pg_class
    WHERE relname='t1';
 
-which gives us a final cost of 1791.
+ce qui nous donne un coût final de 1791.
 
-If the operator is actually a user function, it may depend on the value of
-function ``COST`` clause. The example above shows a cost of 1693 when we use
-the equality operator. If we write a PL/pgsql function that uses this
-operator, but has a 10k cost, it will result in this::
+Si l'opérateur est en fait une fonction utilisateur, le coût dépend de la
+valeur de la clause ``COST`` de la fonction. L'exemple ci-dessus montre un coût
+de 1791 avec l'opérateur d'égalité. Si nous écrivons une fonction PL/pgsql qui
+utilise cet opérateur, mais qui a un coût de 10000, cela donnerait ceci ::
 
    CREATE FUNCTION equal(integer,integer)
    RETURNS boolean
@@ -146,9 +154,13 @@ operator, but has a 10k cost, it will result in this::
       Filter: equal(c1, 1000)
    (2 rows)
 
-So the planner expects to get 33333 rows after applying the "egal(c1, 1000)"
-filter. To know how much rows were actually removed by the filter, we need to
-execute the query, which means using the ``EXPLAIN`` option::
+Le coût a réellement explosé à cause de la clause ``COST`` configurée sur la
+fonction.
+
+Donc le planificateur s'attend à obtenir 33333 lignes après avoir appliqué le
+filtre "equal(c1, 1000)". Pour savoir combien de lignes sont réellement
+supprimées par le filtre, nous avons besoin d'exécuter la requête, ce qui
+signifie utiliser l'option ``ANALYZE`` ::
 
   EXPLAIN (ANALYZE, BUFFERS)
     SELECT * FROM t1 WHERE equal(c1, 1000);
@@ -164,13 +176,13 @@ execute the query, which means using the ``EXPLAIN`` option::
    Execution Time: 44.711 ms
   (6 rows)
 
-The cost has definitely exploded because of the ``COST`` set by the function.
-
-The ``enable_seqscan`` GUC allows us to enable or disable sequential scans. It
-doesn't strictly disable sequential scans (because there's no other way to scan
-a table if there's no index on this table). It simply adds 10^10 to the
-cost, so that we'll get a sequential way only of there's no way to do
-something else::
+Le paramètre ``enable_seqscan`` nous permet d'activer ou de désactiver les
+parcours séquentiels. En fait, il n'est pas possible de désactiver totalement
+les parcours séquentiels (tout simplement parce qu'il n'y a aucun autre moyen
+de parcourir une table s'il n'y a pas d'index sur cette table). La conséquence
+de la pseudo désactivation des parcours séquentiels est d'ajouter 10^10 au
+coût, ce qui fait qu'on obtiendra un parcours séquentiel quand il n'y a aucun
+moyen de procéder autrement ::
 
    SET enable_seqscan TO off;
    EXPLAIN SELECT * FROM t1 WHERE equal(c1, 1000);

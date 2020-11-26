@@ -1,5 +1,5 @@
-Nœuds de parcours d'index
-=========================
+Index scans nodes
+=================
 
 .. toctree::
    :maxdepth: 1

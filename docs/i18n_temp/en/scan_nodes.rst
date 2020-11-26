@@ -1,5 +1,5 @@
-Nœuds de parcours
-=================
+Scan nodes
+==========
 
 .. toctree::
    :maxdepth: 1

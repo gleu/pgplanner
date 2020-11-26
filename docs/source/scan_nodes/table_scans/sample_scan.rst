@@ -1,16 +1,16 @@
 Sample Scan
 ===========
 
-You may need to read only a sample of a table. The SQL standard allows you to
-do this with the TABLESAMPLE clause. PostgreSQL supports this clause, and
-allows you to specifiy the sampling method.
+Parfois, il est intéressant de lire uniquement un échantillon d'une table. Le
+standard SQL dispose pour cela de la clause ``TABLESAMPLE``. PostgreSQL
+accepte cette clause et vous permet de préciser la méthode d'échantillonnage.
 
-Here is an example of such a query::
+Voici un exemple d'une telle requête ::
 
    SELECT * FROM t1 TABLESAMPLE SYSTEM(10)
    WHERE id=10;
 
-And here are the informations the ``EXPLAIN`` statement gives us::
+Et voici les informations renvoyées par l'instruction ``EXPLAIN`` ::
 
    Sample Scan on t1 [...]
      Sampling: system ('10'::real)
@@ -18,24 +18,27 @@ And here are the informations the ``EXPLAIN`` statement gives us::
      Rows Removed by Filter: 999999
      Buffers: shared hit=4005 read=420
 
-The first line is the node name, followed by the relation name. The executor
-will read this table, pages by pages, read each tuple, and keep only those
-that are visible by the current transaction and that respect the filter (if
-there's one).
+La première ligne correspond au nom du nœud, suivi du nom de la relation.
+L'exécuteur va lire cette table, blocs par blocs, lire chaque enregistrement,
+et garder uniquement les enregistrements visibles par la transaction en cours
+et qui respectent le filtre (si un filtre est précisé).
 
-Line #2 specifies the sampling method.
+La deuxième ligne indique la méthode d'échantillonnage.
 
-Line #3 only appears when the executor needs to filter data because of a
-predicate (a ``WHERE`` clause for example). It says which filter is done
-(here, it needs to get all the rows in which the value of id is equal to 10).
+La troisième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
+des données pour respecter un prédicat (une clause ``WHERE`` par exemple).
+Elle précise le filtre réalisé (ici, il doit chercher toutes les lignes dont
+la valeur de la colonne ``id`` est égale à 10).
 
-Line #4 only appears when the executor needs to filter data because of a
-predicate and if the ``ANALYZE`` option is used with the ``EXPLAIN``
-statement.  It says how many rows were filtered out by applying the predicate.
-If this number is a lot more then the number of rows returned by the node, an
-index might help to lower the execution time of the query.
+La quatrième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
+des données pour respecter un prédicat et si l'option ``ANALYZE`` a été
+utilisée avec l'instruction ``EXPLAIN``. Elle indique combien de lignes ont
+été filtrées en appliquant le prédicat. Si ce nombre est bien plus important
+que le nombre de lignes renvoyées par le nœud, un index pourrait aider à
+diminuer la durée d'exécution de la requête.
 
-Line #5 only appears if the ``ANALYZE`` and ``BUFFERS`` options are used. It
-says how shared buffers, local buffers and temporary buffers are handled: how
-many pages are read in cache and out of cache, written, flushed, etc.
+La cinquième ligne apparaît seulement si les options ``ANALYZE`` et ``BUFFERS``
+sont utilisées. Elle indique comment les caches partagé, local et temporaire
+sont gérés : combien de blocs sont lus dans le cache et en dehors, modifiés,
+écrits sur disque, etc.
 

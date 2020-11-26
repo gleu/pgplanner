@@ -1,5 +1,5 @@
-Nœuds de parcours de table
-==========================
+Table scans nodes
+=================
 
 .. toctree::
    :maxdepth: 1

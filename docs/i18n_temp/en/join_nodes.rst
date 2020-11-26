@@ -1,5 +1,5 @@
-Nœuds de jointure
-=================
+Join nodes
+==========
 
 .. toctree::
    :maxdepth: 1

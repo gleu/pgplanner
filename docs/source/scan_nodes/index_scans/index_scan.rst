@@ -1,16 +1,18 @@
 Index Scan
 ==========
 
-The Index Scan is the oldest way of scanning an index. It's still relevant
-though, but there are some optimized ways to scan an index.
+Le nœud ``Index Scan`` est la plus ancienne façon de parcourir un index.  Elle
+est toujours d'actualité, mais il existe d'autres façons, plus optimisées, de
+parcourir un index.
 
-When the executor does an Index Scan, it will scan the index to find the
-values it needs. Each time it finds a good value, it will read the row in the
-table. It needs to do this because only the table row contains visibility
-information (the index doesn't). It may also need other columns' value to
-answer the query.
+Quand l'exécuteur doit réaliser un parcours d'index, il va parcourir l'index à
+la recherche des valeurs qui l'intéressent. Chaque fois qu'il trouve une bonne
+valeur, il lit la ligne dans la table. Il doit faire cela parce que seul
+l'enregistrement dans la table contient les informations de visibilités. Ces
+informations ne font pas partie de l'index. De plus, il pourrait avoir besoin
+de la valeur d'autres colonnes pour répondre à la requête.
 
-Here are the informations the ``EXPLAIN`` statement gives us::
+Voici les informations renvoyées par l'instruction ``EXPLAIN`` ::
 
    Index Scan using t1_id_idx on t1 ...
      Index Cond: (c1 < 1000)
@@ -18,27 +20,33 @@ Here are the informations the ``EXPLAIN`` statement gives us::
      Rows Removed by Filter: 66
      Buffers: shared hit=6
 
-The first line gives us the node name, the index name, and the relation name.
-The executor will read this index, following the tree structure on disk. At
-each value found, it will read the associated table's row.
+La première ligne indique le nom du nœud, le nom de l'index et le nom de la
+table. L'exécuteur va lire cet index, en suivant sa structure d'arbre sur
+disque. À chaque valeur trouvée, il va lire l'enregistrement associé au niveau
+de la table.
 
-Line #2 appears only when the index can satisfy a predicate In this example,
-the executor uses the index to quickly find the rows for which c1 is less than
-1000.
+La deuxième ligne apparaît seulement quand l'index peut satisfaire un
+prédicat. Dans cet exemple, l'exécuteur utilise l'index pour trouver
+rapidement les enregistrements pour lesquels la valeur de la colonne ``c1``
+est inférieure à 1000.
 
-Line #3 may appear if there's another filter used on the index' relation. This
-filtering happens once the associated row on the table has been read.
+La troisième ligne apparaît seulement si un autre filtre est utilisé sur la
+relation de l'index. Ce filtre est réalisé quand une ligne est lue dans la
+table, donc après le filtre de l'index.
 
-Line #4 only appears when the executor needs to filter data other than with
-the index and if the ``ANALYZE`` option is used with the ``EXPLAIN``
-statement.  It says how many rows were filtered out by applying the predicate.
+La quatrième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
+des données autres que celes contenues dans l'index et si la clause
+``ANALYZE`` est utilisée avec l'instruction ``EXPLAIN``. Elle indique le
+nombre de lignes filtrées en appliquant le prédicat.
 
-Line #5 only appears if the ``ANALYZE`` and ``BUFFERS`` options are used. It
-says how shared buffers, local buffers and temporary buffers are handled: how
-many pages are read in cache and out of cache, written, flushed, etc.
+La cinquième ligne apparaît seulement si les clauses ``ANALYZE`` et
+``BUFFERS`` sont utilisées. Elles indiquent combien de blocs sont utilisés
+dans le cache partagé, dans le cache local et pour les fichiers temporaires :
+combien de blocs sont lus dans le cache et hors du cache, modifiés en mémoire,
+écrits sur disque, etc.
 
-So, if we had an index to our table ``t1``, here is an index scan on the
-table::
+Donc, si nous avons un index sur notre table ``t1``, voici ce que donnerait un
+parcours d'index sur cette table::
 
    CREATE INDEX ON t1(c1);
    EXPLAIN SELECT * FROM t1 WHERE c1=1000;
@@ -49,9 +57,10 @@ table::
       Index Cond: (c1 = 1000)
    (2 rows)
 
-An Index Scan index can also be used to answer an ``ORDER BY`` clause in a
-query, though the index should be a B-Tree. Data in a B-Tree index is already
-ordered, so the executor just needs to follow the order::
+Un nœud ``Index Scan`` peut aussi être utilisé pour trier des donénes, par
+exemple lors de l'utilisation d'une clause ``ORDER BY``. Il faut cependant que
+l'index soit un B-Tree. Les données dans un index B-Tree sont déjà triées,
+donc l'exécuteur a juste besoin de lire les données dans l'ordre ::
 
    EXPLAIN SELECT * FROM t1 ORDER BY c1;
 
@@ -60,8 +69,8 @@ ordered, so the executor just needs to follow the order::
     Index Scan using t1_c1_idx on t1  (cost=0.29..3148.29 rows=100000 width=14)
    (1 row)
 
-If the executor needs the biggest values first, it can do a reverse or
-backward scan::
+Si l'exécuteur a besoin de la plus grosse valeur en premier, il peut faire un
+parcours inversei ::
 
    EXPLAIN SELECT * FROM t1 ORDER BY c1 DESC;
 
@@ -70,24 +79,27 @@ backward scan::
     Index Scan Backward using t1_c1_idx on t1  (cost=0.29..3148.29 rows=100000 width=14)
    (1 row)
 
-These two only work on B-Tree indexes. For now, the other index access methods
-can't be used for this.
+Ces deux exemples ne fonctionneront qu'avec des index B-Tree. Les autres
+méthodes d'accès aux index ne peuvent pas être utilisés pour ça.
 
-Due to the tree structure of an index, doing an index scan is pretty slow
-because the OS needs to move the heads of the disk in order to find the next
-interesting page. This behaviour tends to disable the Read Ahead functionality
-of the OS. Because of this, reading the same amount of data in a table and in
-an index will have completely different performances. The index scan will be
-longer, unless the index is available in memory or on a SSD disk. In both
-latter cases, there's no need to move the disk's heads and therefore, the scan
-is faster.
+Dû à la structure d'arbre stockée dans un index, réaliser un parcours d'index
+est très lent parce que le système d'exploitation a besoin de déplacer les
+têtes de lecture du disque pour trouver le prochain bloc à utiliser. Ce
+comportement tend à désactiver la fonctionnalité de ``Read Ahead`` du système
+d'exploitation. De ce fait, lire la même quantité de données dans une table et
+dans un index aura des performances totalement différentes. Le parcours
+d'index sera plus long, sauf si l'index est disponible en mémoire ou sur un
+disque SSD. Dans ces deux derniers cas, il n'est pas nécessaire de déplacer
+des têtes et, de ce fait, le parcours est plus rapide.
 
-The ``random_page_cost`` is the cost associated with reading a page in an
-index. This cost is higher than the ``seq_page_cost`` because of the need to
-move the head. By default, the ``random_page_cost`` is four times higher than
-``seq_page_cost``. Lowering ``random_page_cost`` will help the planner to
-choose an index scan because that will lower the total cost. Here is an
-example with two different values for this GUC::
+Le paramètre ``random_page_cost`` correspond au coût associé à la lecture d'un
+bloc dans un index. Ce coût est plus important que ``seq_page_cost`` parce
+qu'il est nécessaire de déplacer la tête du disque pour lire le prochain bloc.
+Par détaut, la valeur de ``random_page_cost`` est quatre fois plus haute que
+celle de ``seq_page_cost``. Diminuer ``random_page_cost`` motivera le
+planificateur à choisir un parcours d'index car cela diminuera le coût total
+d'utilisation de l'index. Voici un exemple avec deux valeurs différentes pour
+ce paramètre ::
 
    SET random_page_cost TO 4;
    EXPLAIN SELECT * FROM t1 ORDER BY c1 DESC;
@@ -105,8 +117,7 @@ example with two different values for this GUC::
     Index Scan Backward using t1_c1_idx on t1  (cost=0.29..2317.29 rows=100000 width=14)
    (1 row)
 
-By lowering ``random_page_cost`` from 4 to 1, the total cost is actually quite
-lower too.
+En diminuant ``random_page_cost`` de 4 à 1, le coût total est bien plus bas.
 
-The ``enable_indexscan`` GUC allows us to enable or disable index scans. You
-shouldn't disable it globally.
+Le paramètre ``enable_indexscan`` nous permet d'activer ou de désactiver ce
+nœud. Il est fortement déconseillé de le désactiver globalement.

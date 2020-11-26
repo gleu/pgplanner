@@ -3,18 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Bienvenue sur la documentation de pgplanner !
-=============================================
+Welcome to pgplanner's documentation!
+=====================================
 
 .. toctree::
    :maxdepth: 3
-   :caption: Contenu:
+   :caption: Contents:
 
    scan_nodes
    join_nodes
 
-Index et tableaux
-=================
+Indices and tables
+==================
 
 * :ref:`genindex`
 * :ref:`modindex`
