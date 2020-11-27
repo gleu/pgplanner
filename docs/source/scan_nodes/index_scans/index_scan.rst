@@ -8,11 +8,11 @@ parcourir un index.
 Quand l'exécuteur doit réaliser un parcours d'index, il va parcourir l'index à
 la recherche des valeurs qui l'intéressent. Chaque fois qu'il trouve une bonne
 valeur, il lit la ligne dans la table. Il doit faire cela parce que seul
-l'enregistrement dans la table contient les informations de visibilités. Ces
+l'enregistrement dans la table contient les informations de visibilité. Ces
 informations ne font pas partie de l'index. De plus, il pourrait avoir besoin
 de la valeur d'autres colonnes pour répondre à la requête.
 
-Voici les informations renvoyées par l'instruction ``EXPLAIN`` ::
+Voici les informations renvoyées par l'instruction ``EXPLAIN``::
 
    Index Scan using t1_id_idx on t1 ...
      Index Cond: (c1 < 1000)
@@ -35,7 +35,7 @@ relation de l'index. Ce filtre est réalisé quand une ligne est lue dans la
 table, donc après le filtre de l'index.
 
 La quatrième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
-des données autres que celes contenues dans l'index et si la clause
+des données autres que celles contenues dans l'index et si la clause
 ``ANALYZE`` est utilisée avec l'instruction ``EXPLAIN``. Elle indique le
 nombre de lignes filtrées en appliquant le prédicat.
 
@@ -57,10 +57,10 @@ parcours d'index sur cette table::
       Index Cond: (c1 = 1000)
    (2 rows)
 
-Un nœud ``Index Scan`` peut aussi être utilisé pour trier des donénes, par
+Un nœud ``Index Scan`` peut aussi être utilisé pour trier des données, par
 exemple lors de l'utilisation d'une clause ``ORDER BY``. Il faut cependant que
 l'index soit un B-Tree. Les données dans un index B-Tree sont déjà triées,
-donc l'exécuteur a juste besoin de lire les données dans l'ordre ::
+donc l'exécuteur a juste besoin de lire les données dans l'ordre::
 
    EXPLAIN SELECT * FROM t1 ORDER BY c1;
 
@@ -70,7 +70,7 @@ donc l'exécuteur a juste besoin de lire les données dans l'ordre ::
    (1 row)
 
 Si l'exécuteur a besoin de la plus grosse valeur en premier, il peut faire un
-parcours inversei ::
+parcours inverse::
 
    EXPLAIN SELECT * FROM t1 ORDER BY c1 DESC;
 
@@ -84,7 +84,7 @@ méthodes d'accès aux index ne peuvent pas être utilisés pour ça.
 
 Dû à la structure d'arbre stockée dans un index, réaliser un parcours d'index
 est très lent parce que le système d'exploitation a besoin de déplacer les
-têtes de lecture du disque pour trouver le prochain bloc à utiliser. Ce
+têtes de lecture du disque pour trouver le prochain bloc à lire. Ce
 comportement tend à désactiver la fonctionnalité de ``Read Ahead`` du système
 d'exploitation. De ce fait, lire la même quantité de données dans une table et
 dans un index aura des performances totalement différentes. Le parcours
@@ -95,11 +95,11 @@ des têtes et, de ce fait, le parcours est plus rapide.
 Le paramètre ``random_page_cost`` correspond au coût associé à la lecture d'un
 bloc dans un index. Ce coût est plus important que ``seq_page_cost`` parce
 qu'il est nécessaire de déplacer la tête du disque pour lire le prochain bloc.
-Par détaut, la valeur de ``random_page_cost`` est quatre fois plus haute que
+Par défaut, la valeur de ``random_page_cost`` est quatre fois supérieure à
 celle de ``seq_page_cost``. Diminuer ``random_page_cost`` motivera le
 planificateur à choisir un parcours d'index car cela diminuera le coût total
 d'utilisation de l'index. Voici un exemple avec deux valeurs différentes pour
-ce paramètre ::
+ce paramètre::
 
    SET random_page_cost TO 4;
    EXPLAIN SELECT * FROM t1 ORDER BY c1 DESC;

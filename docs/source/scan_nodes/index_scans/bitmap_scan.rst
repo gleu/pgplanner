@@ -21,8 +21,8 @@ filtre, et une valeur 1 signifie qu'il correspond au filtre. S'il y a trop
 d'enregistrements à stocker, le bitmap devient ``lossy`` (à perte), et chaque
 bit représente un bloc, plutôt qu'un enregistrement. Dans un tel cas, pendant
 l'étape du parcours de la table, une vérification supplémentaire (un
-``recheck``) est fait au niveau du bloc. L'exécueur sait qu'une ou plusieurs
-lignes satisfont le filtre mais il a besoin de savoir exactement lesquelles).
+``recheck``) est fait au niveau du bloc. L'exécuteur sait qu'une ou plusieurs
+lignes satisfont le filtre mais il a besoin de savoir exactement lesquelles.
 L'avantage est que l'exécuteur peut fonctionner sur un énorme nombre de lignes
 sans utiliser trop de mémoire.
 
@@ -49,8 +49,8 @@ implémentation généraliste de table de hachage, appelée ``dynahash``,
 permettant de gérer beaucoup de cas possibles. Mais celle-ci n'est pas très
 performante dans ce cas particulier. C'est pourquoi un autre type de table de
 hachage a été introduit avec la version 10 de PostgreSQL. Cette nouvelle
-implémentation, appelée simplehash , permet de définir à la compilation et non
-à l'exécution le type de la clé ainsi que les différentes fonctions
+implémentation, appelée ``simplehash``, permet de définir à la compilation et
+non à l'exécution le type de la clé ainsi que les différentes fonctions
 nécessaires pour utiliser cette table de hachage, ce qui évite un surcoût
 inutile. De plus, la gestion des collisions est pensée pour être efficace dans
 le cas de très grosses tables de hachage, où les collisions sont fréquentes.
@@ -65,7 +65,7 @@ Ce type de parcours est composé d'au moins deux nœuds. Le premier, un ``Bitmap
 Index Scan`` fait le parcours de l'index et crée l'index bitmap en mémoire. Le
 deuxième, appelé ``Bitmap Heap Scan``, lit les blocs pointés par l'index
 bitmap dans la table pour vérifier le respect du prédicat des lignes de ce
-bloc. Ainsi, il récupère les lignes à renvoyer. En voici un exemple simple ::
+bloc. Ainsi, il récupère les lignes à renvoyer. En voici un exemple simple::
 
    Bitmap Heap Scan on t1 ...
      Recheck Cond: (c1 = ANY ('{10,40,60,100,600}'::integer[]))
@@ -80,11 +80,11 @@ Donc son premier intérêt est purement la performance du parcours due au
 découplage des parcours de l'index et de la table. Il présente néanmoins un
 autre intérêt.
 
-Soit une requête utilisant un filtre sur deux colonnes ::
+Soit une requête utilisant un filtre sur deux colonnes::
 
    SELECT * FROM t1 WHERE c1<100000 AND c2>=50
 
-Une autre force de ce type de parcours est qu'il est très facile de cumuler
+Une autre force de ce type de parcours est qu'il est très facile de combiner
 plusieurs de ces bitmaps pour récupérer les lignes voulues. En effet, s'il
 existe un index sur ``c1`` et un index sur ``c2``, PostgreSQL ne pourra pas
 faire un parcours d'index sur ces deux index à la fois. Cependant, combiner
@@ -96,7 +96,7 @@ logique (nœud ``BitmapAnd``) sur les deux champs de bits s'il faut retourner
 les lignes correspondant aux deux prédicats, ou un ``OR`` logique (nœud
 ``BitmapOr`` ) pour les lignes correspondant à au moins un prédicat, et il se
 retrouve avec un unique champ de bits qu'il sait traiter avec un nœud ``Bitmap
-Heap Scan`` ::
+Heap Scan``::
 
    Bitmap Heap Scan on clients
      ...
@@ -130,8 +130,8 @@ Chacun des bits correspond à une ligne (ou à un bloc si le nombre de lignes
 est trop important).
 
 La ligne ``Index Cond`` indique le filtre utilisé. Dans le cas de cette ligne,
-PostgreSQL utilise l'index pour trouver rapidement les lignes satisfaisant le
-filtre ``c1 < 1000``.
+PostgreSQL utilise l'index ``t1_c1_idx`` pour trouver rapidement les lignes
+satisfaisant le filtre ``c1 < 1000``.
 
 Du fait d'avoir à d'abord créer l'index bitmap en mémoire, la récupération des
 premières lignes est lentes (on dit que le coût de démarrage est élevé), ce

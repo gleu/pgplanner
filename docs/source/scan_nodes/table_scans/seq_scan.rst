@@ -23,37 +23,37 @@ du nombre total de lignes.
 
 Comme les blocs sont lus dans l'ordre séquentiel, les lignes ne sont pas
 spécialement triées. Elles sont lues dans l'ordre séquentiel physique, ce qui
-ne signifie pas forcément qu'elles seront triées dans leur ordre d'insertion
-ou dans tout autre ordre.
+ne signifie pas forcément qu'elles seront renvoyées dans leur ordre
+d'insertion.
 
 Voici les informations données par l'instruction ``EXPLAIN`` ::
 
    Seq Scan on t1 [...]
-     Filter: (id = 10)
+     Filter: (c1 = 10)
      Rows Removed by Filter: 999999
      Buffers: shared hit=4005 read=420
 
 La première ligne indique le nom du nœud suivi du nom de la relation.
 L'exécuteur va lire cette table, bloc par bloc, lire chaque ligne et ne
-conserver que celles visibles pour la transaction en cours et respectant
-le filtre (s'il y en a un).
+conserver que celles visibles pour la transaction en cours et respectant le
+filtre (s'il y en a un).
+
+La deuxième ligne apparaît seulement quand l'exécuteur a besoin de filtrer des
+données pour respecter un prédicat (une clause ``WHERE`` par exemple).  Elle
+précise le filtre réalisé (ici, il doit chercher toutes les lignes dont la
+valeur de la colonne ``c1`` est égale à 10).
 
 La troisième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
-des données pour respecter un prédicat (une clause ``WHERE`` par exemple).
-Elle précise le filtre réalisé (ici, il doit chercher toutes les lignes dont
-la valeur de la colonne ``id`` est égale à 10).
-
-La quatrième ligne apparaît seulement quand l'exécuteur a besoin de filtrer
-des données pour respecter un prédicat et si l'option ``ANALYZE`` a été 
-utilisée avec l'instruction ``EXPLAIN``. Elle indique combien de lignes ont 
+des données pour respecter un prédicat et si l'option ``ANALYZE`` a été
+utilisée avec l'instruction ``EXPLAIN``. Elle indique combien de lignes ont
 été filtrées en appliquant le prédicat. Si ce nombre est bien plus important
 que le nombre de lignes renvoyées par le nœud, un index pourrait aider à
 diminuer la durée d'exécution de la requête.
 
-La cinquième ligne apparaît seulement si les options ``ANALYZE`` et ``BUFFERS``
-sont utilisées. Elle indique comment les caches partagé, local et temporaire
-sont gérés : combien de blocs sont lus dans le cache et en dehors, modifiés,
-écrits sur disque, etc.
+La quatrième ligne apparaît seulement si les options ``ANALYZE`` et
+``BUFFERS`` sont utilisées. Elle indique comment les caches partagé, local et
+les fichiers temporaire sont gérés : combien de blocs sont lus dans le cache
+et en dehors, modifiés, écrits sur disque, etc.
 
 Quand PostgreSQL n'a pas de statistiques sur le nombre de lignes ou de blocs
 (par exemple une table vide immédiatement après sa création), le planificateur
@@ -61,7 +61,7 @@ suppose qu'elle fait dix blocs, et estime le nombre de lignes dans ces dix
 blocs. Donc l'estimation du coût final sera différent entre deux tables qui
 diffèrent en nombre de lignes par bloc.
 
-Voici comment créer la table avec laquelle nous allons expérimenter ::
+Voici comment créer la table avec laquelle nous allons expérimenter::
 
    CREATE TABLE t1 (c1 integer, c2 text);
    INSERT INTO t1 SELECT i, 'Line '||i FROM generate_series(1, 100000) i;
@@ -69,7 +69,7 @@ Voici comment créer la table avec laquelle nous allons expérimenter ::
 
 Lisons la table complète. Un parcours séquentiel sera plus rapide car il lit
 les pages séquentiellement. De plus, c'est la seule option actuellement vu que
-la table n'a pas d'index ::
+la table n'a pas d'index::
 
    EXPLAIN SELECT * FROM t1;
    
@@ -85,22 +85,22 @@ Le coût dépend de différentes choses :
 * et la configuration actuelle des paramètres ``seq_page_cost`` et
   ``cpu_tuple_cost``.
 
-Nous pouvons obtenir le coût avec cette requête ::
+Nous pouvons obtenir le coût avec cette requête::
 
    SELECT
      round((
-       current_setting('seq_page_cost')::numeric*relpages +
-       current_setting('cpu_tuple_cost')::numeric*reltuples
+         current_setting('seq_page_cost')::numeric  * relpages
+       + current_setting('cpu_tuple_cost')::numeric * reltuples
      )::numeric, 2)
    AS final_cost
    FROM pg_class
    WHERE relname='t1';
 
-Exécutant cette requête renvoie comme résultat ``1541.00``, ce qui est en
-effet le coût final.
+Exécuter cette requête renvoie comme résultat ``1541.00``, ce qui est en effet
+le coût final.
 
-S'il existe un filtre, cela coûtera plus parce que le travail à effectuer doit
-procéder au test sur toutes les lignes de la table ::
+S'il existe un filtre, cela coûtera plus parce qu'il devient nécessaire de
+tester toutes les lignes de la table avec ce prédicat::
 
    EXPLAIN SELECT * FROM t1 WHERE c1=1000;
    
@@ -121,9 +121,9 @@ requête devient ::
 
    SELECT
      round((
-       current_setting('seq_page_cost')::numeric*relpages +
-       current_setting('cpu_tuple_cost')::numeric*reltuples +
-       current_setting('cpu_operator_cost')::numeric*reltuples
+         current_setting('seq_page_cost')::numeric     * relpages
+       + current_setting('cpu_tuple_cost')::numeric    * reltuples
+       + current_setting('cpu_operator_cost')::numeric * reltuples
      )::numeric, 2)
    AS final_cost
    FROM pg_class
@@ -157,10 +157,10 @@ utilise cet opérateur, mais qui a un coût de 10000, cela donnerait ceci ::
 Le coût a réellement explosé à cause de la clause ``COST`` configurée sur la
 fonction.
 
-Donc le planificateur s'attend à obtenir 33333 lignes après avoir appliqué le
-filtre "equal(c1, 1000)". Pour savoir combien de lignes sont réellement
-supprimées par le filtre, nous avons besoin d'exécuter la requête, ce qui
-signifie utiliser l'option ``ANALYZE`` ::
+Concernant le nombre de lignes, le planificateur s'attend à en obtenir 33333
+après avoir appliqué le filtre ``equal(c1, 1000)``. Pour savoir combien de
+lignes sont réellement supprimées par le filtre, nous avons besoin d'exécuter
+la requête, ce qui signifie utiliser l'option ``ANALYZE``::
 
   EXPLAIN (ANALYZE, BUFFERS)
     SELECT * FROM t1 WHERE equal(c1, 1000);
@@ -181,8 +181,8 @@ parcours séquentiels. En fait, il n'est pas possible de désactiver totalement
 les parcours séquentiels (tout simplement parce qu'il n'y a aucun autre moyen
 de parcourir une table s'il n'y a pas d'index sur cette table). La conséquence
 de la pseudo désactivation des parcours séquentiels est d'ajouter 10^10 au
-coût, ce qui fait qu'on obtiendra un parcours séquentiel quand il n'y a aucun
-moyen de procéder autrement ::
+coût, ce qui fait qu'on obtiendra tout de même un parcours séquentiel quand il
+n'y a aucun moyen de procéder autrement, mais avec un coût délirant::
 
    SET enable_seqscan TO off;
    EXPLAIN SELECT * FROM t1 WHERE equal(c1, 1000);

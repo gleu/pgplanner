@@ -11,14 +11,14 @@ des autres colonnes. De plus, depuis la version 9.2, il existe un fichier
 appelé la ``Visibility Map``, contenant des informations sur la visibilité des
 enregistrements. Ceci signifie que, parfois, il n'est pas nécessaire de
 parcourir la table lors d'un parcours d'index. Quand l'optimiseur pense que
-c'est une bonne idée, il utilise un autre nœud appelé ``Index Only
-Scan``. Par exemple, sur cette requête ::
+c'est une bonne idée, il utilise un autre type de nœud appelé ``Index Only
+Scan``. Par exemple, sur cette requête::
 
   SELECT c1 FROM t1 WHERE c1<10;
 
 L'index sera capable de filtrer les lignes très efficacement et d'avoir
 suffisamment d'informations pour sortir les valeurs nécessaires. D'où ce
-nouveau plan ::
+nouveau plan::
 
    EXPLAIN SELECT c1 FROM t1 WHERE c1<10;
 
@@ -28,7 +28,7 @@ nouveau plan ::
       Index Cond: (c1 < 10)
    (2 rows)
 
-Voici les informations obtenues à partir de l'instruction ``EXPLAIN`` ::
+Voici les informations obtenues à partir de l'instruction ``EXPLAIN``::
 
    Index Only Scan using t1_id_idx on t1 ...
      Index Cond: (id < 10)
@@ -41,23 +41,24 @@ disque. À chaque valeur trouvée, il va vérifier si le bloc de cette ligne est
 marqué ``tous visibles`` dans la ``Visibility Map``. Si le bloc est marqué
 ``tous visibles``, l'exécuteur sait que la ligne est visible et renverra la
 valeur de la colonne.  Si ce n'est pas le cas, il lira la ligne de la table
-pointé par l'index pour obtenir les informations de visibilité.
+pointée par l'index pour obtenir les informations de visibilité.
 
-La ligne 2 apparaît seulement quand l'index peut satisfaire un prédicat. Dans
-cet exemple, l'exécuteur utilise l'index pour trouver rapidement les lignes
-pour lesquelles c1 est inférieur à 1000.
+La deuxième ligne apparaît seulement quand l'index peut satisfaire un
+prédicat. Dans cet exemple, l'exécuteur utilise l'index pour trouver
+rapidement les lignes pour lesquelles la valeur de la colonne ``c1`` est
+inférieure à 1000.
 
-La troisième ligne apparaît seulement quand la clause ``ANALYZE`` est utilisée
+La troisième ligne apparaît seulement quand l'option ``ANALYZE`` est utilisée
 avec l'instruction ``EXPLAIN``. Elle indique le nombre de lignes lues dans la
 table.
 
-La quatrième ligne apparaît seulement si les clauses ``ANALYZE`` et
+La quatrième ligne apparaît seulement si les options ``ANALYZE`` et
 ``BUFFERS`` sont utilisées. Elle indique comment sont utilisés le cache
 partagé, le cache local et les fichiers temporaires : combien de blocs sont
 lus dans le cache et hors du cache, modifiés, écrits sur disque, etc.
 
 Voyons un exemple. Lisons ``t1`` et récupérons toutes les lignes pour
-lesquelles la valeur de la colonne ``c1`` est supérieure à 90000 ::
+lesquelles la valeur de la colonne ``c1`` est supérieure à 90000::
 
    EXPLAIN (ANALYZE, BUFFERS) SELECT c1 FROM t1 WHERE c1>90000;
 
@@ -74,7 +75,7 @@ lesquelles la valeur de la colonne ``c1`` est supérieure à 90000 ::
 
 La ligne ``Heap Fetches`` nous indique que l'exécuteur n'a pas eu besoin de
 lire de lignes dans la table. Maintenant, ajoutons quelques lignes dans la
-table, et testons de nouveau ``EXPLAIN`` ::
+table, et testons de nouveau ``EXPLAIN``::
 
    INSERT INTO t1 SELECT i, 'Line '||i FROM generate_series(100001, 120000) i;
    EXPLAIN (ANALYZE, BUFFERS) SELECT c1 FROM t1 WHERE c1>90000;
@@ -94,9 +95,14 @@ L'insertion a ajouté quelques blocs dans la table, et il n'y a pas eu de
 ``VACUUM`` entre temps, ce qui signifie que la ``Visibility Map`` n'a pas été
 mise à jour. Donc, maintenant, la ligne ``Heap Fetches`` indique que 20100
 lignes ont été lues dans la table pour déterminer leur visibilité pour la
-transaction en cours.
+transaction en cours. Il est à noter que ce nombre de lignes est supérieur au
+nombre de lignes insérées. Cela veut dire que le dernier bloc de la table
+avant l'insertion n'était pas complet et qu'il a été modifié pour y insérer
+une partie des nouvelles lignes. De ca fait, le bloc a été considéré modifié
+et toutes les lignes qui y font partie, les anciennes comme les nouvelles, ont
+été vérifiées.
 
-Maintenant, exécutons un ``VACUUM`` et essayons de nouveau ::
+Maintenant, exécutons un ``VACUUM`` et essayons de nouveau::
 
    VACUUM t1;
    EXPLAIN (ANALYZE, BUFFERS) SELECT c1 FROM t1 WHERE c1>90000;
@@ -124,18 +130,20 @@ nœud. Les index BRIN ne seront jamais compatibles parce qu'ils ne contiennent
 pas les valeurs, seulement des intervalles de valeurs par bloc. Les index
 partiels supportent ce type de nœud depuis la version 9.6.
 
-Ce type de parcours est particulièrement efficace sur les tables peu modifiées. Il
-sera plus facilement sélectionné si vous prenez soin de l'ordre des colonnes de
-l'index : tout d'abord celles qui sont utilisées dans les clauses WHERE des requêtes,
-puis celles qui sont uniquement utilisées dans les clauses SELECT .
+Ce type de parcours est particulièrement efficace sur les tables peu
+modifiées. Il sera plus facilement sélectionné si vous prenez soin de l'ordre
+des colonnes de l'index : tout d'abord celles qui sont utilisées dans les
+clauses ``WHERE`` des requêtes, puis celles qui sont uniquement utilisées dans
+les clauses ``SELECT``.
 
 Certaines requêtes ne permettent pas de bénéficier de ce type de parcours parce
 qu'elles demandent d'accéder à des colonnes qui ne font pas partie de l'index. Il
 est possible de les inclure dans l'index sans qu'elles ne fassent partie de la clé, ce
 qui est très intéressant dans le cas d'un index pour une contrainte d'unicité ou une
-clé primaire. Il faut pour cela utiliser la clause INCLUDE qui apparaît en version 11.
-On parle alors d'index couvrant.
+clé primaire. Il faut pour cela utiliser la clause ``INCLUDE`` qui est apparue
+en version 11.  On parle alors d'index couvrant.
 
-Le paramètre enable_indexonlyscan permet de désactiver temporairement les par-
-cours d'index couvrant. Il est essentiel de ne pas les désactiver globalement en pro-
-duction.
+Le paramètre ``enable_indexonlyscan`` permet de désactiver temporairement les
+parcours d'index couvrant. Il est essentiel de ne pas les désactiver
+globalement en production.
+

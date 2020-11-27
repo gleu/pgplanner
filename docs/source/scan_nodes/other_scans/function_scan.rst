@@ -4,7 +4,7 @@ Function Scan
 Une fonction appelée dans la clause ``FROM`` ou dans une jointure utilise un
 nœud ``Function Scan``.
 
-En voici un exemple ::
+En voici un exemple::
 
    Function Scan on f1 (cost=0.25..10.25 rows=1000 width=4)
 
@@ -19,13 +19,15 @@ cela des clauses ``ROWS`` et ``COST`` pour les configurer statiquement. Le
 coût a une unité correspondant à ``cpu_operator_cost``, ceci signifiant que
 vous aurez à multiplier le coût de la fonction avec la valeur du paramètre
 ``cpu_operator_cost`` et avec le nombre de lignes pour obtenir le coût du
-filtre. De ce fait, la requête pour le coût final devient ::
+filtre. De ce fait, la requête pour le coût final devient::
 
    SELECT
      round((
-       current_setting('seq_page_cost')::numeric*relpages +
-       current_setting('cpu_tuple_cost')::numeric*reltuples +
-       <FUNCTION_COST>*current_setting('cpu_operator_cost')::numeric*reltuples
+       current_setting('seq_page_cost')::numeric                     * relpages
+       +
+       current_setting('cpu_tuple_cost')::numeric                    * reltuples
+       +
+       <FUNCTION_COST>*current_setting('cpu_operator_cost')::numeric * reltuples
      )::numeric, 2)
    AS final_cost
    FROM pg_class
