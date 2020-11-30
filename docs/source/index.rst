@@ -10,6 +10,7 @@ Bienvenue sur la documentation de pgplanner !
    :maxdepth: 3
    :caption: Contenu:
 
+   thanks
    scan_nodes
    join_nodes
 
