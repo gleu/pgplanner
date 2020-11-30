@@ -11,6 +11,7 @@ Bienvenue sur la documentation de pgplanner !
    :caption: Contenu:
 
    thanks
+   license
    scan_nodes
    join_nodes
 
