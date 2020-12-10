@@ -14,6 +14,7 @@ Bienvenue sur la documentation de pgplanner !
    license
    scan_nodes
    join_nodes
+   other_nodes
 
 Index et tableaux
 =================
